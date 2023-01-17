@@ -20,12 +20,17 @@ class Provider extends AbstractProvider
      */
     public static function additionalConfigKeys()
     {
-        return ['base_url', 'realms'];
+        return ['base_url', 'backend_url', 'realms', 'post_logout_redirect_uri'];
     }
 
     protected function getBaseUrl()
     {
         return rtrim(rtrim($this->getConfig('base_url'), '/').'/realms/'.$this->getConfig('realms', 'master'), '/');
+    }
+
+    protected function getBackendUrl()
+    {
+        return rtrim(rtrim($this->getConfig('backend_url', getConfig('base_url')), '/').'/realms/'.$this->getConfig('realms', 'master'), '/');
     }
 
     /**
@@ -41,7 +46,7 @@ class Provider extends AbstractProvider
      */
     protected function getTokenUrl()
     {
-        return $this->getBaseUrl().'/protocol/openid-connect/token';
+        return $this->getBackendUrl().'/protocol/openid-connect/token';
     }
 
     /**
@@ -49,7 +54,7 @@ class Provider extends AbstractProvider
      */
     protected function getUserByToken($token)
     {
-        $response = $this->getHttpClient()->get($this->getBaseUrl().'/protocol/openid-connect/userinfo', [
+        $response = $this->getHttpClient()->get($this->getBackendUrl().'/protocol/openid-connect/userinfo', [
             RequestOptions::HEADERS => [
                 'Authorization' => 'Bearer '.$token,
             ],
@@ -82,20 +87,23 @@ class Provider extends AbstractProvider
     }
 
     /**
-     * Return logout endpoint with redirect_uri query parameter.
+     * Return logout endpoint with id_token_hint and post_logout_redirect_uri query parameter.
      *
-     * @param string|null $redirectUri
+     * @param string $idTokenHint
      *
      * @return string
      */
-    public function getLogoutUrl(?string $redirectUri = null): string
+    public function getLogoutUrl(string $idTokenHint = null): string
     {
         $logoutUrl = $this->getBaseUrl().'/protocol/openid-connect/logout';
 
-        if ($redirectUri === null) {
-            return $logoutUrl;
-        }
-
-        return $logoutUrl.'?redirect_uri='.urlencode($redirectUri);
+        return $logoutUrl
+          .'?'
+          .'id_token_hint='
+          .$idTokenHint
+          .'&'
+          .'post_logout_redirect_uri='
+          .urlencode($this->getConfig('post_logout_redirect_uri'))
+          ;
     }
 }
